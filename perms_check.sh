@@ -3,7 +3,7 @@
 # perms_check.sh - checks if current mode of file matches the rpm db & warns if 
 #                  mode is less restrictive. Based on DISA STIG RHEL-06-000518.
 #
-# author  : Chad Mayfield (code@chadmayfield.com)
+# author  : Chad Mayfield (chad@chd.my)
 # license : gplv3
 #
 # EXAMPLE OUTPUT:
@@ -14,8 +14,6 @@
 # ACTUAL: 755 (should be 750) File: /etc/firewalld
 #
 # TODO:
-#  - fix the $perms_num filesystem perms sed statement to handle sticky bit
-#    better as well as setuid/setgid files
 #  - "optimize" loop to not run cmds more than once
 
 
@@ -57,21 +55,66 @@ for i in ${files[@]}; do
     perms=$(rpm -q --queryformat "[%{FILEMODES:perms}  %{FILENAMES}\n]" $pkg |\
             egrep " ${i}$" | awk '{print $1}' | cut -c2-)
 
-    # convert perms to numeric annotation ()
-    perms_num=$(echo $perms | sed -e 's/rwx/7/g' -e 's/rwt/7/g' \
-                                  -e 's/rw-/6/g' -e 's/rwT/6/g' \
-                                  -e 's/r-x/5/g' -e 's/r-t/5/g' \
-                                  -e 's/r--/4/g' -e 's/r-T/4/g' \
-                                  -e 's/-wx/3/g' -e 's/-wt/3/g' \
-                                  -e 's/-w-/2/g' -e 's/-wT/2/g' \
-                                  -e 's/--x/1/g' -e 's/---/0/g' )
+    # split $perms into 3 parts for owner/group/other
+    # to check for special permissions and note them
+    readarray a <<< $(echo $perms | fold -w 3)
+
+    # initialize
+    index=0
+    spec_perms=0
+
+    # check for special perms in array
+    for j in ${a[@]}
+    do
+        #echo $j[${index}]
+
+        # chart to remember specials perms
+        #1--- Sticky Bit         2--- SGID
+        #3--- Sticky Bit & SGID  4--- SUID
+        #5--- Sticky Bit & SUID  6--- SGID & SUID
+        #7--- Sticky Bit, SUID, SGID
+
+        # set special perms if found
+        if [[ $j =~ [sS] ]] && [ $index -eq 0 ]; then
+             # setuid set (group)
+             let spec_perms+=4
+        elif [[ $j =~ [sS] ]] && [ $index -eq 1 ]; then
+             # setgid set (owner)
+             let spec_perms+=2
+        elif [[ $j =~ [tT] ]] && [ $index -eq 2 ]; then
+             # sticky bit set (other)
+             let spec_perms+=1
+        else
+             :
+        fi
+
+        let index++
+    done
+
+    # now that we have special perms let's convert the regular
+    # perms to numerical rep. it may be ugly, but it works!
+    perms_num=$(echo $perms | sed -e 's/rw[xts]/7/g' \
+                                  -e 's/rw[-TS]/6/g' \
+                                  -e 's/r-[xts]/5/g' \
+                                  -e 's/r-[-TS]/4/g' \
+                                  -e 's/-w[xts]/3/g' \
+                                  -e 's/-w[-TS]/2/g' \
+                                  -e 's/--[xts]/1/g' \
+                                  -e 's/--[-TS]/0/g' )
+
+    # and combine them
+    if [ $spec_perms -ne 0 ]; then
+        perms_num=$(echo ${spec_perms}${perms_num})
+    fi
 
     # get actual filesystem perms
     aperms_num=$(stat -c "%a" $i)
 
-    if [ $aperms_num -ge $perms_num ]; then
+    if [ $aperms_num -gt $perms_num ]; then
         printf "ACTUAL: %s (should be %s) File: %s\n" $aperms_num $perms_num $i
     fi
 done
+
+echo " "
 
 #EOF
