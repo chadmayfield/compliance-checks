@@ -1,0 +1,15 @@
+rwxrwxrwx
+rwxrwxrwt
+rwxrwxrwT
+rwxrwsrwx
+rwxrwSrwx
+rwxrwsrwt
+rwxrwSrwT
+rwsrwxrwx
+rwSrwxrwx
+rwsrwxrwt
+rwSrwxrwT
+rwsrwsrwx
+rwSrwSrwx
+rwsrwsrwt
+rwSrwSrwT
