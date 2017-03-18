@@ -4,5 +4,5 @@ Anyone who has had the 'pleasure' and opportunity to harden a system based on DI
 
 ## perms_check.sh
 
-Based on RHEL-06-000518. This script will check the current mode of a file on the filesystem with that of the RPM DB and warn if the permission is less restrictive. It doesn't care if it is more restrictive since that will usually be more secure.
+Based on RHEL-06-000518 (https://www.stigviewer.com/stig/red_hat_enterprise_linux_6/2013-02-05/finding/RHEL-06-000518). This script will check the current mode of a file on the filesystem with that of the RPM DB and warn if the permission is less restrictive. It doesn't care if it is more restrictive since that will usually be more secure.
 
